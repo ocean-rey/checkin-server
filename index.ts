@@ -19,18 +19,29 @@ const PORT = 8080;
 const app = express();
 const prisma = new PrismaClient();
 
-prisma.event.findMany({select: {id: true, name: true, city: true, image: true, startDate: true, endDate: true}}).then(res=>{
-    console.log(res[0])
-})
+prisma.event
+  .findMany({
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      image: true,
+      startDate: true,
+      endDate: true,
+    },
+  })
+  .then((res) => {
+    console.log(res[0]);
+  });
 
 // initialize events.
 axios
   .get("https://www.visitsaudi.com/bin/api/v1/events?locale=en&limit=100")
   .then((res) => {
-    console.log(res.data);
+    //console.log(res.data);
     const events: [event] = res.data.data;
     //console.log(events.length);
-/*     events.forEach((event) => {
+    events.forEach((event) => {
       const eventData = {
         shortDesc: event.shortDescription,
         name: event.title,
@@ -40,12 +51,17 @@ axios
         long: parseFloat(event.longitude),
         startDate: new Date(event.calendarStartDate),
         endDate: new Date(event.calendarEndDate),
+        season: event.season,
       };
+      console.log(eventData);
       prisma.event
         .create({
           data: eventData,
-        })
-    }); */
+        })/* 
+        .catch((err) => {
+          console.log(err);
+        }); */
+    });
   })
   .catch((err) => {
     console.log(err);
@@ -84,21 +100,28 @@ app.get("/", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  // call auth server first
+  // called from auth server
   prisma.user
-    .create({ data: { email: req.body.email, id: /* response.id */ "" } })
+    .create({ data: { id: req.body._id, email: req.body.email } })
     .then(() => {
       res.status(200).send();
     })
     .catch((err) => {
+      console.error("Error creating new user!");
+      console.error(err);
       res.status(400).send(err);
     });
 });
 
-app.get("/nearest-events", (req, res)=>{
-    // expecting req.body to be {lat: number, long: number}
-    const {lat, long} = req.body
-/*     prisma.event.findFirst({orderBy: [{lat: }]}) */
-})
+app.get("/nearest-events", async (req, res) => {
+  // do this naively; get all events and calculate absoulte value
+  // of (user lang - event lang) + (user lat - event lat)
+  const { body } = req;
+  const { lat: userLat, long: userLong } = body;
+  const allEvents = await prisma.event.findMany({
+    select: { image: true, name: true, shortDesc: true},
+  });
+  res.status(200).send(allEvents);
+});
 
 app.post("/update-events", (req, res) => {});
